@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Смена менеджера — Pingwin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Golos+Text:wght@400;600&display=swap" rel="stylesheet">
@@ -59,12 +59,33 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
 .endbox p{color:var(--mute);font-size:15px;margin:0 auto 8px;max-width:52ch}
 .note{font-size:13px;color:var(--mute);margin-top:14px}
 @media(max-width:600px){.dlg{gap:10px;padding:10px;min-height:120px}.pf{width:68px;height:68px;padding:3px}.say{font-size:16px}.who{font-size:16px}.slot{width:46px;height:46px}.slot canvas{width:38px;height:38px}.hover{font-size:13px}}
+
+/* горизонтальный телефон: сцена во весь экран, диалог сверху поверх сцены, сумка снизу */
+@media (orientation:landscape) and (max-height:600px){
+ body{overflow:hidden}
+ .band{padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+ .wrap{max-width:none}
+ .top,.obj,.note{display:none}
+ .stage{position:relative;width:min(100vw - env(safe-area-inset-left) - env(safe-area-inset-right),calc(100vh * 16 / 9));width:min(100vw - env(safe-area-inset-left) - env(safe-area-inset-right),calc(100dvh * 16 / 9));margin:0 auto}
+ .game{border-radius:0;box-shadow:none}
+ .dlg{position:absolute;left:25.5%;right:19%;top:2%;margin:0;min-height:0;max-height:46%;overflow:auto;padding:6px 8px;gap:8px;background:rgba(17,12,24,.92);border-width:1.5px;z-index:3}
+ .pf{width:48px;height:48px;padding:2px}
+ .who{font-size:13px;margin:0 0 2px}.say{font-size:14px;min-height:0;line-height:1.3}.more{font-size:11px;margin-top:2px}
+ .choices{gap:5px;margin-top:6px}.choices button{font-size:13px;min-height:34px;padding:4px 8px}
+ .inv{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);margin:0;min-height:0;padding:3px;gap:4px;background:rgba(17,12,24,.85);z-index:3;flex-wrap:nowrap;max-width:70%;overflow-x:auto}
+ .inv .empty{display:none}.inv:has(.empty){display:none}
+ .slot{width:38px;height:38px;flex:none}.slot canvas{width:32px;height:32px}
+ .hover{bottom:auto;top:50%;font-size:12px}
+ .endbox{position:fixed;inset:4%;margin:0;overflow:auto;z-index:10}
+ .over h2{font-size:30px}.over p{font-size:13px}
+}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
 <main class="band"><div class="wrap">
   <div class="top"><h1>Смена менеджера</h1><span class="tag">Pingwin Premium · пятница</span></div>
+  <div class="stage">
   <div class="game">
     <canvas id="scene" aria-label="Игровая сцена"></canvas>
     <div class="hover" id="hover"></div>
@@ -91,11 +112,13 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
     </div>
   </div>
   <div class="inv" id="inv" aria-label="Сумка"></div>
+  </div>
   <div class="obj"><span>Цель: <b id="goal"></b></span><span>Тап по полу — идти. Тап по людям и предметам — действие. Предмет из сумки: выбери и тапни, куда применить.</span></div>
   <p class="note">Тестовая версия. Фоны и персонажи сгенерированы по фото и схеме Pingwin Premium.</p>
 </div></main>
 
 <script>
+window.addEventListener('error',e=>{try{const t='Ошибка: '+(e.message||e)+' ('+(e.lineno||'')+')';const l=document.getElementById('loading');if(l)l.textContent=t;const d=document.getElementById('say');if(d)d.textContent=t}catch(_){}});
 {
 const $=id=>document.getElementById(id);
 const LW=640,LH=360,K=1.5;
@@ -254,7 +277,7 @@ function goal(){const g=(t,s,x,y=0)=>[t,s,x,y];
  return g('…','lobby',0)}
 const LINKS={};for(const s in SC){LINKS[s]={}}
 function buildLinks(){for(const s in SC)SC[s].hot().forEach(h=>{if(h.go)LINKS[s][h.go]=h})}
-function hop(from,to){if(from===to)return null;const q=[[from]],seen={[from]:1};while(q.length){const p=q.shift(),n=p.at(-1);for(const m of Object.keys(LINKS[n]||{})){if(seen[m])continue;const np=[...p,m];if(m===to)return np.at(1);seen[m]=1;q.push(np)}}return null}
+function hop(from,to){if(from===to)return null;const q=[[from]],seen={[from]:1};while(q.length){const p=q.shift(),n=p.slice(-1)[0];for(const m of Object.keys(LINKS[n]||{})){if(seen[m])continue;const np=[...p,m];if(m===to)return np.slice(1)[0];seen[m]=1;q.push(np)}}return null}
 
 /* ---------- диалоги ---------- */
 const dl={who:$('who'),say:$('say'),more:$('more'),ch:$('choices')};
@@ -292,13 +315,13 @@ function serikTalk(){
  if(S.ch===2&&!S.flash){talk([['serik','Фонарик? Держите. Батарейки свежие, но верните потом.']],null,()=>{S.flash=1;give('flash')});return}
  if(S.ch===5){if(!S.s5cam){talk([['me','Серик, покажи записи с камеры над баром.'],['serik','Смотрю… 23:10. Дана забирает со стойки поднос с забытыми вещами.'],['serik','И вашу коробочку заодно.']],null,()=>{S.s5cam=1});return}
   if(S.s5dana&&!S.s5locker&&!has('lkey')){talk([['serik','Ключ от шкафчика находок? Держите.']],null,()=>give('lkey'));return}}
- talk([['serik',['На входе порядок, шеф. Народ уже собирается.','Камила — та самая блогер. Половина зала на неё подписана.','На входе тихо. Удачи с боулингом.','Бауыржан? Мимо меня не проходил.','Если что — я рядом.','Кольцо найдём, шеф.'].at(S.ch)]])}
+ talk([['serik',['На входе порядок, шеф. Народ уже собирается.','Камила — та самая блогер. Половина зала на неё подписана.','На входе тихо. Удачи с боулингом.','Бауыржан? Мимо меня не проходил.','Если что — я рядом.','Кольцо найдём, шеф.'].slice(S.ch)[0]]])}
 function hostTalk(){
  if(S.ch===0){talk([['host','Бронь на вечер полная, шеф. Справлюсь!']]);return}
  if(S.ch===1&&!S.metHost){S.metHost=1;talk([['host','Пришла Камила с подругами, без брони. Она блогер, у неё огромная аудитория.'],['host','Хотят VIP-караоке. А у нас всё занято.'],['me','Совсем всё?'],['host','VIP-1 — праздник Ерлана, в VIP-2 уже поют, VIP-3 забронирован на 20:00.']]);return}
  if(S.ch===1){talk([['host',S.vipFree?'Уборку в VIP-3 я уже предупредила!':'Планшет с бронями на стойке, если нужно.']]);return}
  if(S.ch===4&&!has('taxi')&&!S.s4d){talk([['host','Такси? Вот визитка, они приезжают за пять минут.']],null,()=>give('taxi'));return}
- talk([['host',['','','Шеф, в боулинге шумно. Там корпоратив.','В VIP-1 грустно без музыки…','В зале какой-то шум!','Удачи, шеф!'].at(S.ch)]])}
+ talk([['host',['','','Шеф, в боулинге шумно. Там корпоратив.','В VIP-1 грустно без музыки…','В зале какой-то шум!','Удачи, шеф!'].slice(S.ch)[0]]])}
 function tablet(){
  if(S.ch!==1){say1('Брони на вечер. Корпоратив на дорожках 9–12 до полуночи, VIP-1 — Ерлан с 22:00.');return}
  if(S.vipFree){say1('VIP-3 свободен. Осталось сказать гостям.');return}
@@ -329,7 +352,7 @@ function timurTalk(){
  if(S.ch===2&&!S.key){if(has('ice')){giveIce();return}
   if(!S.askedIce){S.askedIce=1;talk([['timur','Ключ от служебки? Дам.'],['timur','Только у меня кончился лёд, а кухня в завале.'],['timur','Принесите ведро — и ключ ваш.']]);return}
   talk([['timur','Лёд, шеф. Ведро. С кухни.']]);return}
- talk([['timur',['','Видели Камилу? Её тут все узнают.','Ну как там машина, шеф?','Без музыки наверху как-то тихо…','Даурен заказал третий коктейль. Я ему больше не наливаю.','Дана сегодня собирала забытые вещи со стойки.'].at(S.ch)]])}
+ talk([['timur',['','Видели Камилу? Её тут все узнают.','Ну как там машина, шеф?','Без музыки наверху как-то тихо…','Даурен заказал третий коктейль. Я ему больше не наливаю.','Дана сегодня собирала забытые вещи со стойки.'].slice(S.ch)[0]]])}
 function giveIce(){if(!has('ice')){say1('Тимуру сейчас нужно не это.');return}take('ice');S.key=1;give('key');sc(0,1,0);talk([['timur','Спасительница! Держите ключ от служебки.'],['timur','Только машину не доломайте.']])}
 function galinaTalk(){
  if(S.ch===2&&S.askedIce&&!S.key&&!has('ice')){talk([['galina','Лёд? Льдогенератор справа. Ведро верни!']]);return}
@@ -366,11 +389,11 @@ function sanzharTalk(){if(S.s3san){talk([['sanzhar',S.s3fixed?'Звук есть
   {t:'Отнеси в VIP-1 комплимент от бара, мы быстро',go:()=>{S.s3san=1;sc(1,0,-1);talk([['sanzhar','Понял, несу!']])}},
   {t:'Скажи гостям, что через пять минут всё будет',go:()=>{S.s3san=1;talk([['sanzhar','Хорошо. Но вы уж постарайтесь.']])}}])}
 function console_(){if(S.ch===3&&!S.s3fixed){S.s3console=1;say1('Пульт мигает красным: питание пропало. Похоже, выбило автомат в щитке.');return}say1('Пульт работает, огоньки бегут.')}
-function bauTalk(){talk([['bau',['Звук проверил, шеф! Сегодня всё будет качать.','Всё под контролем. Пульт — мой лучший друг.','Всё под контролем. Пульт — мой лучший друг.','Простите ещё раз за звук…','Отсюда видно всю сцену. Ой, кто это там с микрофоном?','Музыка для предложения готова. Жду сигнала.'].at(S.ch)]])}
+function bauTalk(){talk([['bau',['Звук проверил, шеф! Сегодня всё будет качать.','Всё под контролем. Пульт — мой лучший друг.','Всё под контролем. Пульт — мой лучший друг.','Простите ещё раз за звук…','Отсюда видно всю сцену. Ой, кто это там с микрофоном?','Музыка для предложения готова. Жду сигнала.'].slice(S.ch)[0]]])}
 function rozaTalk(){
  if(S.ch===3&&!S.s3fixed&&!has('pkey')){talk([['roza','Бауыржан? Выбежал на минутку через чёрный ход, на кухне.'],['roza','А щиток у нас в техшкафу на балконе. Ключ у меня, держи, дочка.']],null,()=>give('pkey'));return}
  if(S.ch===4&&!S.s4dress&&!has('spray')){talk([['roza','Пятно? Возьми с тележки пятновыводитель. Он и вино берёт.']]);return}
- talk([['roza',['Всё блестит, дочка.','Здесь всё сияет.','Работаем, работаем.','Щиток, щиток… Ты справишься.','Ох уж эти гости.','Кольцо? Я ничего не видела, но верю, что найдёшь.'].at(S.ch)]])}
+ talk([['roza',['Всё блестит, дочка.','Здесь всё сияет.','Работаем, работаем.','Щиток, щиток… Ты справишься.','Ох уж эти гости.','Кольцо? Я ничего не видела, но верю, что найдёшь.'].slice(S.ch)[0]]])}
 function cart(){if(S.ch===4&&!S.s4dress&&!has('spray')){give('spray');say1('Пятновыводитель. То, что нужно.');return}say1('Тележка Розы апай: тряпки, спреи, ведро.')}
 function techBox(){if(S.ch!==3||S.s3fixed){say1('Техшкаф. Щиток в порядке.');return}
  if(!has('pkey')){say1('Техшкаф заперт. Ключ, наверное, у Розы апай.');return}
@@ -405,7 +428,7 @@ function finale(){if(!has('cake'))return;pose('ma5',3);take('cake');S.done=1;sc(
  talk([['me','С днём рождения, Ерлан!'],['erlan','Асель… Я давно хотел спросить.'],['erlan','Ты выйдешь за меня?'],['asel','Да! Конечно, да!'],['bau','Музыку погромче!']],null,()=>{confetti=1;setTimeout(epilogue,1600)})}
 function epilogue(){talk([['book','Позвольте представиться. Я тайный гость сети. Весь вечер наблюдал за вами.'],['book',rating()>=4?'Это была образцовая смена. Высшая оценка.':rating()>=3?'Хорошая смена. Есть над чем поработать, но гости довольны.':'Тяжёлая ночь. Но кольцо вы нашли — это главное.'],
  ...(S.s4d==='warn'?[['dauren','Эм… а я куртку свою не оставлял?..']]:[])],null,endCard)}
-let confetti=0;const CONF=Array.from({length:90},(_,i)=>({x:Math.random()*640,y:-Math.random()*360,v:40+Math.random()*60,c:['#ff4fb0','#f0c060','#3ec9c1','#ffffff'].at(i%4)}));
+let confetti=0;const CONF=Array.from({length:90},(_,i)=>({x:Math.random()*640,y:-Math.random()*360,v:40+Math.random()*60,c:['#ff4fb0','#f0c060','#3ec9c1','#ffffff'].slice(i%4)[0]}));
 const rating=()=>Math.round((S.g+S.t+S.k)/3);
 function endCard(){endOpen=true;const st=n=>'★'.repeat(Math.max(1,Math.round(n*3/5)))+'☆'.repeat(3-Math.max(1,Math.round(n*3/5)));const r=rating();
  $('endT').textContent=r>=4?'Легенда смены':r>=3?'Пережили!':'Тяжёлая ночь';
@@ -459,7 +482,7 @@ function hud(){c.save();c.fillStyle='rgba(12,8,20,.78)';c.strokeStyle='#4a3560';
  c.fillStyle='rgba(12,8,20,.78)';rr(LW-118,8,110,26);c.fill();c.stroke();c.fillStyle='#f4eef6';c.font='600 12px "Pixelify Sans",monospace';c.textAlign='right';c.fillText('Пт, '+CH[S.ch][1],LW-16,21);
  c.textAlign='left';c.fillStyle='rgba(12,8,20,.7)';const nm=SC[S.scene].name;c.font='600 11px "Pixelify Sans",monospace';const tw=c.measureText(nm).width;rr(LW/2-tw/2-10,10,tw+20,20);c.fill();c.fillStyle='#f0c060';c.textAlign='center';c.fillText(nm,LW/2,20);c.textAlign='left';
  pops=pops.filter(p=>(p.t-=1/60)>0);pops.forEach((p,i)=>{c.globalAlpha=Math.min(1,p.t);c.fillStyle='#f0c060';c.font='600 13px "Pixelify Sans",monospace';c.fillText(p.s,16,82+i*16+(1.6-p.t)*-6);c.globalAlpha=1});c.restore()}
-function rr(x,y,w,h){c.beginPath();c.roundRect?c.roundRect(x,y,w,h,6):c.rect(x,y,w,h)}
+function rr(x,y,w,h){c.beginPath();typeof c.roundRect==='function'?c.roundRect(x,y,w,h,6):c.rect(x,y,w,h)}
 let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=Math.max(0,POSET-dt);
  if(!started||!S){requestAnimationFrame(frame);return}
@@ -490,6 +513,7 @@ ready.then(()=>{S=NEW();buildLinks();$('loading').textContent='';const sv=loadSa
 $('bNew').addEventListener('click',()=>ready.then(()=>start(null)));
 $('bCont').addEventListener('click',()=>ready.then(()=>start(loadSave())));
 $('again').addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});start(null)});
+addEventListener('orientationchange',()=>setTimeout(()=>window.scrollTo(0,0),200));
 requestAnimationFrame(frame);
 window.__g={get S(){return S},me,hits,get open(){return open},get card(){return cardOpen},get started(){return started}};
 }
