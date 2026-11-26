@@ -126,7 +126,7 @@ const cv=$('scene'),c=cv.getContext('2d');cv.width=LW*K;cv.height=LH*K;
 c.setTransform(K,0,0,K,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
 
 /* ---------- ассеты ---------- */
-const BGN=['lobby','hall','bowling','machine','kitchen','balcony','vip1','vip2','vip3','wc','back','panel'];
+const BGN=['lobby','hall','bowling','machine','kitchen','balcony','vip1','vip2','vip3','wc','back','panel','c_tablet','c_pin','c_cctv','c_locker','c_dress','c_cake'];
 const IMG={};let ATL={},ICN=[],RIG=null;
 function load(src){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src})}
 const ready=Promise.all([...BGN.map(n=>load('assets/bg/'+n+'.webp').then(i=>IMG[n]=i)),load('assets/atlas.png').then(i=>IMG.atlas=i),load('assets/icons.png').then(i=>IMG.icons=i),load('assets/me_portrait.webp').then(i=>IMG.mep=i),load('assets/rig.png').then(i=>IMG.rig=i),fetch('assets/rig.json').then(r=>r.json()).then(j=>RIG=j),fetch('assets/atlas.json').then(r=>r.json()).then(j=>{ATL=j.sprites;ICN=j.icons})]);
@@ -228,21 +228,41 @@ const SC={
  wc:{name:'Туалет · 2 этаж',floor:352,s:1.6,min:80,max:520,
   npcs:()=>[{k:'roza',x:380,act:rozaTalk}],
   hot:()=>[{n:'Тележка уборщицы',x:440,y:190,w:120,h:140,at:470,act:cart},{n:'На балкон',x:570,y:100,w:70,h:240,at:540,go:'balcony'}]},
- panel:{name:'Техшкаф',floor:340,s:1,min:300,max:300,npcs:()=>[],hot:()=>[]}
+ panel:{name:'Щиток',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_tablet:{name:'Планшет броней',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_pin:{name:'Внутри пинсеттера',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_cctv:{name:'Камеры наблюдения',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_locker:{name:'Шкафчик находок',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_dress:{name:'Платье',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot},
+ c_cake:{name:'Торт',closeup:1,floor:340,s:1,min:300,max:300,npcs:()=>[],hot:backHot}
 };
+function backHot(){return S.mini?[]:[{n:'Назад',x:0,y:296,w:90,h:64,at:300,act:leaveCloseup,mk:[34,330]}]}
+function leaveCloseup(){S.ready=null;S.mini=null;go(S.prevScene||'lobby',S.prevX)}
+function inspect(cid,kind,text,onWin){S.prevScene=S.scene;S.prevX=me.x;WIN=onWin;go(cid,300,()=>{S.ready=kind;talk([['me',text]])})}
+let WIN=null;
+function makeMini(k){
+ if(k==='timing')return{type:'timing',hits:0,p:0,v:1,zone:.1+Math.random()*.6,sh:0,flash:0};
+ if(k==='breakers')return{type:'breakers',st:[1,0,0,1,0,1]};
+ if(k==='tablet')return{type:'tablet',hint:''};
+ if(k==='cctv')return{type:'cctv',t:0,drag:0};
+ if(k==='lock')return{type:'lock',d:[0,0,0,0]};
+ if(k==='stain')return{type:'stain',b:[[180,120,38],[300,200,46],[420,140,34],[250,280,30],[470,260,40],[360,90,26]].map(([x,y,r])=>({x,y,r,a:1}))};
+ if(k==='candles')return{type:'candles',lit:[0,0,0,0,0,0,0],next:1.2};
+}
+function winMini(){S.mini=null;beep(784,.12,'triangle',.05);setTimeout(()=>beep(1046,.16,'triangle',.05),120);const w=WIN;WIN=null;w&&w()}
 const CH=[['Пролог','19:00','Открытие смены'],['Глава 1','20:00','Без брони'],['Глава 2','21:00','Боулинг встал'],['Глава 3','22:00','Тишина в VIP'],['Глава 4','23:00','Сцена на танцполе'],['Глава 5','23:40','Где кольцо?']];
 
 /* ---------- состояние ---------- */
 let S,T=0,fade={a:0,d:0,cb:null},cardOpen=false,endOpen=false,started=false,pops=[];
 const me={x:300,tx:300,face:1,cb:null,ph:0};
 const NEW=()=>({ch:0,scene:'lobby',inv:[],sel:null,g:3,t:3,k:3,radio:0,vis:{},erlanCalled:0,erlanHere:0,erlanMet:0,ringStored:0,metHost:0,talkedKamila:0,vipFree:0,host:0,kamila:null,viktor:null,triedDoor:0,askedIce:0,key:0,flash:0,fixed:0,mini:null,
- s3san:0,s3console:0,s3fixed:0,s3bau:0,bauChoice:0,s4d:null,s4dress:0,needTaxi:0,s5empty:0,s5cam:0,s5dana:0,s5locker:0,s5ring:0,cake:0,done:0});
+ s3san:0,s3console:0,s3fixed:0,s3bau:0,bauChoice:0,s4d:null,s4dress:0,needTaxi:0,s5empty:0,s5cam:0,s5dana:0,s5locker:0,s5code:0,ready:null,prevScene:null,prevX:300,s5ring:0,cake:0,done:0});
 const has=id=>S.inv.includes(id);
 function give(id){if(!has(id))S.inv.push(id);pose('ma3',.7);renderInv();beep(880,.06);setTimeout(()=>beep(1320,.08),70);pops.push({t:1.6,s:'+ '+ITEM[id][0]})}
 function take(id){S.inv=S.inv.filter(i=>i!==id);if(S.sel===id)S.sel=null;renderInv()}
 function sc(g,t,k){if(g)S.g=Math.max(0,Math.min(5,S.g+g));if(t)S.t=Math.max(0,Math.min(5,S.t+t));if(k)S.k=Math.max(0,Math.min(5,S.k+k));
  [['Гости',g],['Команда',t],['Касса',k]].forEach(([n,v])=>{if(v)pops.push({t:1.6,s:n+(v>0?' +':' −')})})}
-function save(){try{localStorage.setItem('pingwin-shift',JSON.stringify({...S,mini:null,sel:null}))}catch(e){}}
+function save(){try{localStorage.setItem('pingwin-shift',JSON.stringify({...S,mini:null,sel:null,ready:null}))}catch(e){}}
 function loadSave(){try{const j=JSON.parse(localStorage.getItem('pingwin-shift')||'null');return j&&j.ch>0?j:null}catch(e){return null}}
 
 /* ---------- сумка ---------- */
@@ -270,8 +290,8 @@ function goal(){const g=(t,s,x,y=0)=>[t,s,x,y];
   return g('Найди Бауыржана: Роза видела его у чёрного хода','back',440)}
  if(S.ch===4){if(!S.s4d)return S.needTaxi&&!has('taxi')?g('Визитка такси — у Айгерим на ресепшн','lobby',246):g('Разберись с Дауреном в зале','hall',390);
   if(!S.s4dress)return has('spray')?g('Спаси платье пятновыводителем','hall',300):g('Пятновыводитель — на тележке Розы апай','wc',500,190);return g('…','hall',0)}
- if(S.ch===5){if(!S.s5empty)return g('Забери кольцо из ящика под стойкой','hall',335,250);if(!S.s5cam)return g('Посмотри записи камер у Серика','lobby',186);
-  if(!S.s5dana)return g('Найди официантку Дану в зале','hall',120);if(!S.s5locker&&!has('lkey'))return g('Ключ от шкафчика находок — у Серика','lobby',186);
+ if(S.ch===5){if(!S.s5empty)return g('Забери кольцо из ящика под стойкой','hall',335,250);if(!S.s5cam)return g('Посмотри записи камер: спроси Серика','lobby',186);
+  if(!S.s5dana)return g('Найди официантку Дану в зале','hall',120);if(!S.s5locker&&!S.s5code)return g('Узнай код шкафчика у Серика','lobby',186);
   if(!S.s5locker)return g('Открой шкафчик находок за стойкой','lobby',376,228);if(!has('ring')&&!S.cake)return g('Найди Виктора Палыча в боулинге','bowling',492);
   if(!S.cake)return g('Отнеси кольцо шефу Галине на кухню','kitchen',330);return g('Вынеси торт Ерлану в VIP-1','vip1',256)}
  return g('…','lobby',0)}
@@ -313,8 +333,8 @@ const nextCh=n=>()=>setTimeout(()=>chapter(n),700);
 function serikTalk(){
  if(!S.radio){talk([['serik','Шеф, добрый вечер. Ваша рация, канал второй.'],['me','Спасибо. Если что — сразу в эфир.']],null,()=>{S.radio=1;give('radio')});return}
  if(S.ch===2&&!S.flash){talk([['serik','Фонарик? Держите. Батарейки свежие, но верните потом.']],null,()=>{S.flash=1;give('flash')});return}
- if(S.ch===5){if(!S.s5cam){talk([['me','Серик, покажи записи с камеры над баром.'],['serik','Смотрю… 23:10. Дана забирает со стойки поднос с забытыми вещами.'],['serik','И вашу коробочку заодно.']],null,()=>{S.s5cam=1});return}
-  if(S.s5dana&&!S.s5locker&&!has('lkey')){talk([['serik','Ключ от шкафчика находок? Держите.']],null,()=>give('lkey'));return}}
+ if(S.ch===5){if(!S.s5cam){talk([['me','Серик, мне нужны записи с камеры над баром.'],['serik','Монитор в моей будке. Перематывайте сами, шеф.']],null,()=>inspect('c_cctv','cctv','Запись с камеры над баром, 22:50–23:30. Перемотай и останови на моменте, когда коробочка исчезла.',()=>{S.s5cam=1;go('lobby',300,()=>talk([['me','Стоп! 23:10 — Дана забирает со стойки поднос с забытыми вещами.'],['me','И коробочку Ерлана вместе с ними.']]))}));return}
+  if(S.s5dana&&!S.s5locker&&!S.s5code){talk([['serik','Код от шкафчика находок? Загадку помните, шеф: так у нас заведено.'],['serik','Сначала номер дорожки, которая сегодня ломалась. Потом номер VIP Ерлана — двумя цифрами.']],null,()=>{S.s5code=1});return}}
  talk([['serik',['На входе порядок, шеф. Народ уже собирается.','Камила — та самая блогер. Половина зала на неё подписана.','На входе тихо. Удачи с боулингом.','Бауыржан? Мимо меня не проходил.','Если что — я рядом.','Кольцо найдём, шеф.'].slice(S.ch)[0]]])}
 function hostTalk(){
  if(S.ch===0){talk([['host','Бронь на вечер полная, шеф. Справлюсь!']]);return}
@@ -325,7 +345,8 @@ function hostTalk(){
 function tablet(){
  if(S.ch!==1){say1('Брони на вечер. Корпоратив на дорожках 9–12 до полуночи, VIP-1 — Ерлан с 22:00.');return}
  if(S.vipFree){say1('VIP-3 свободен. Осталось сказать гостям.');return}
- talk([['me','Брони на вечер… VIP-3, 20:00, компания Сауле.'],['me','Стоп. Непрочитанное сообщение от 19:48.'],['me','«Отменяем бронь, ребёнок заболел. Извините!»'],['host','Ой… Я его не заметила. Простите, шеф.']],[
+ inspect('c_tablet','tablet','Планшет броней. Все VIP заняты… но где-то здесь должна быть зацепка.',()=>go('lobby',300,tabletWin))}
+function tabletWin(){talk([['me','Вот оно! Непрочитанное сообщение от 19:48.'],['me','«Отменяем бронь VIP-3, ребёнок заболел. Извините!» — компания Сауле.'],['host','Ой… Я его не заметила. Простите, шеф.']],[
   {t:'Бывает. Давай проверять сообщения каждые полчаса',go:()=>{S.host=1;S.vipFree=1;sc(0,1,0);talk([['host','Поняла! Спасибо, что не ругаетесь.']])}},
   {t:'Это уже второй раз за неделю. Будь внимательнее',go:()=>{S.host=-1;S.vipFree=1;sc(0,-1,0);talk([['host','…Да, шеф.']])}}])}
 function kamilaTalk(){
@@ -381,7 +402,7 @@ function serviceDoor(){if(S.ch!==2||S.fixed){say1('Служебная дверь
  if(!S.flash){talk([['me','Открыла. Внутри темно, хоть глаз выколи.'],['me','Нужен фонарик. Он у Серика на входе.']]);return}
  go('machine',60)}
 function machineAct(){if(S.fixed){say1('Машина работает ровно, как часы.');return}if(S.ch!==2)return;
- hov.textContent='';S.mini={type:'timing',hits:0,p:0,v:1,zone:.1+Math.random()*.6,sh:0};dl.who.textContent='Мини-игра';portrait('me');dl.say.textContent='Шар застрял в желобе. Тапай, когда стрелка в бирюзовой зоне. Нужно 3 точных толчка.';dl.more.textContent='';dl.ch.innerHTML=''}
+ inspect('c_pin','timing','Шар застрял в желобе между шестерёнками. Красный рычаг справа может его вытолкнуть, если дёргать в такт.',()=>{S.fixed=1;go('machine',380,()=>talk([['me','Есть! Шар выскочил, грабли поднялись.'],['me','Машина ожила. Теперь — к Виктору Палычу.']]))})}
 
 /* ---------- глава 3 ---------- */
 function sanzharTalk(){if(S.s3san){talk([['sanzhar',S.s3fixed?'Звук есть! Спасибо, шеф.':'Шеф, гости ждут…']]);return}
@@ -397,7 +418,7 @@ function rozaTalk(){
 function cart(){if(S.ch===4&&!S.s4dress&&!has('spray')){give('spray');say1('Пятновыводитель. То, что нужно.');return}say1('Тележка Розы апай: тряпки, спреи, ведро.')}
 function techBox(){if(S.ch!==3||S.s3fixed){say1('Техшкаф. Щиток в порядке.');return}
  if(!has('pkey')){say1('Техшкаф заперт. Ключ, наверное, у Розы апай.');return}
- S.prevScene='balcony';go('panel',300,()=>{hov.textContent='';S.mini={type:'breakers',st:[1,0,0,1,0,1],sh:0};dl.who.textContent='Мини-игра';portrait('me');dl.say.textContent='Подними все автоматы. Каждый щелчок переключает соседей тоже. Тапай по автоматам.';dl.more.textContent='';dl.ch.innerHTML=''})}
+ inspect('panel','breakers','Щиток открыт. Половина автоматов выбита. Если щёлкнуть один, переключаются и соседние…',()=>{S.s3fixed=1;sc(1,0,0);go('balcony',64,()=>talk([['me','Щёлк! Пульт ожил, музыка вернулась.'],['r:sanzhar','Шеф, звук есть! Гости аплодируют!']],null,checkCh3))})}
 function bauBack(){talk([['bau','Шеф?.. Я на минутку вышел подышать.'],['me','В VIP-1 и VIP-2 пропал звук. Ерлан сидит в тишине.'],['bau','Ой… Я не знал. Простите.']],[
  {t:'Это последний раз. Штраф за уход с поста',go:()=>{S.s3bau=1;S.bauChoice=-1;sc(0,-1,1);talk([['bau','Понял. Больше не повторится.']],null,checkCh3)}},
  {t:'Давай договоримся: уходишь — предупреждаешь по рации',go:()=>{S.s3bau=1;S.bauChoice=1;sc(0,1,0);talk([['bau','Договорились. Спасибо, шеф. Бегу к пульту!']],null,checkCh3)}}])}
@@ -411,20 +432,23 @@ function daurenTalk(){if(has('taxi')){taxiDauren();return}
   {t:'Последнее предупреждение. Ещё раз — и на выход',go:()=>{S.s4d='warn';talk([['dauren','Понял, понял. Я тихо.']],null,checkCh4)}}])}
 function taxiDauren(){if(!has('taxi'))return;take('taxi');S.s4d='taxi';sc(1,0,0);talk([['me','Такси будет через пять минут. Серик проводит вас до машины.'],['dauren','Вот это сервис… Даже такси вызвали. Спасибо!']],null,checkCh4)}
 function victimTalk(){const v=VICT();if(has('spray')){sprayVictim();return}talk([[v,'Моё платье! Он облил меня коктейлем!'],['me','Сейчас что-нибудь придумаем.']])}
-function sprayVictim(){if(!has('spray'))return;take('spray');S.s4dress=1;sc(1,0,0);const v=VICT();
- talk([['me','Минутку… Пятновыводитель Розы апай творит чудеса.'],[v,'Пятна почти не видно! Спасибо!'],...(v==='kamila'&&S.kamila==='vip'?[['kamila','Сниму сторис, какой у вас сервис!']]:[])],null,()=>{if(v==='kamila'&&S.kamila==='vip')sc(1,0,0);checkCh4()})}
+function sprayVictim(){if(!has('spray'))return;inspect('c_dress','stain','Пятно от коктейля прямо на платье. Пшикнуть и аккуратно потереть, пока не впиталось.',()=>go('hall',300,dressWin))}
+function dressWin(){take('spray');S.s4dress=1;sc(1,0,0);const v=VICT();
+ talk([['me','Готово. Пятновыводитель Розы апай творит чудеса.'],[v,'Пятна почти не видно! Спасибо!'],...(v==='kamila'&&S.kamila==='vip'?[['kamila','Сниму сторис, какой у вас сервис!']]:[])],null,()=>{if(v==='kamila'&&S.kamila==='vip')sc(1,0,0);checkCh4()})}
 function checkCh4(){if(S.s4d&&S.s4dress)nextCh(5)()}
 
 /* ---------- глава 5 ---------- */
-function danaTalk(){if(S.s5cam&&!S.s5dana){talk([['me','Дана, ты забирала со стойки коробочку?'],['dana','Ой! Я думала, это чьи-то забытые вещи.'],['dana','Отнесла в шкафчик находок за ресепшн. Ключ у Серика.']],null,()=>{S.s5dana=1});return}
+function danaTalk(){if(S.s5cam&&!S.s5dana){talk([['me','Дана, ты забирала со стойки коробочку?'],['dana','Ой! Я думала, это чьи-то забытые вещи.'],['dana','Отнесла в шкафчик находок за ресепшн. Код знает Серик.']],null,()=>{S.s5dana=1});return}
  talk([['dana','Шеф, всё в порядке?']])}
 function locker(){if(S.ch!==5||S.s5locker){say1('Шкафчик находок: перчатки, зарядки, один зонт.');return}
- if(!has('lkey')){say1(S.s5dana?'Заперто. Ключ у Серика.':'Шкафчик находок. Заперт.');return}
- take('lkey');S.s5locker=1;give('cuff');talk([['me','Вот она! Похожая коробочка… но внутри запонки.'],['me','Такие же коробки сегодня дарили на корпоративе. Значит, наша — у Виктора Палыча!']])}
+ if(!S.s5code){say1(S.s5dana?'Кодовый замок на четыре цифры. Код знает Серик.':'Шкафчик находок. Заперт на кодовый замок.');return}
+ inspect('c_locker','lock','Четыре окошка. «Сначала дорожка, которая ломалась, потом VIP Ерлана двумя цифрами»…',()=>go('lobby',376,lockerWin))}
+function lockerWin(){S.s5locker=1;give('cuff');talk([['me','Вот она! Похожая коробочка… но внутри запонки.'],['me','Такие же коробки сегодня дарили на корпоративе. Значит, наша — у Виктора Палыча!']])}
 function ringGalina(){if(!has('ring'))return;take('ring');S.cake=1;give('cake');talk([['galina','Наконец-то! Ставлю кольцо на верхушку… Готово.'],['galina','Неси, только не урони!']])}
 function erlanVip(){if(S.ch===5&&has('cake')){finale();return}
  talk([['erlan',S.ch===3&&!S.s3fixed?'Шеф, а музыка будет? Через два часа мой главный момент…':S.ch===5?'Шеф… Всё в силе?':'Отличный вечер! Спасибо, что всё так.']])}
-function finale(){if(!has('cake'))return;pose('ma5',3);take('cake');S.done=1;sc(1,1,1);
+function finale(){if(!has('cake'))return;inspect('c_cake','candles','Семь свечей. Зажги все разом, пока Ерлан не встал. Сквозняк из двери гасит их по одной.',()=>go('vip1',180,finaleWin))}
+function finaleWin(){pose('ma5',3);take('cake');S.done=1;sc(1,1,1);
  talk([['me','С днём рождения, Ерлан!'],['erlan','Асель… Я давно хотел спросить.'],['erlan','Ты выйдешь за меня?'],['asel','Да! Конечно, да!'],['bau','Музыку погромче!']],null,()=>{confetti=1;setTimeout(epilogue,1600)})}
 function epilogue(){talk([['book','Позвольте представиться. Я тайный гость сети. Весь вечер наблюдал за вами.'],['book',rating()>=4?'Это была образцовая смена. Высшая оценка.':rating()>=3?'Хорошая смена. Есть над чем поработать, но гости довольны.':'Тяжёлая ночь. Но кольцо вы нашли — это главное.'],
  ...(S.s4d==='warn'?[['dauren','Эм… а я куртку свою не оставлял?..']]:[])],null,endCard)}
@@ -438,22 +462,44 @@ function endCard(){endOpen=true;const st=n=>'★'.repeat(Math.max(1,Math.round(n
  [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.15,'triangle',.05),i*120))}
 
 /* ---------- мини-игры ---------- */
+const HELP={timing:'Тапай, когда жёлтая стрелка в бирюзовой зоне. Нужно 3 точных рывка рычагом.',breakers:'Подними все автоматы. Щелчок переключает и соседние.',tablet:'Найди в списке то, что освобождает VIP. Тапни по строке.',cctv:'Веди пальцем по экрану, чтобы перематывать. Отпусти на нужном кадре.',lock:'Тапай над окошком — цифра больше, под окошком — меньше.',stain:'Три пальцем по пятнам, пока не исчезнут.',candles:'Тапай по свечам, чтобы зажечь. Нужны все семь сразу.'};
+function miniHelp(){dl.who.textContent='Мини-игра';portrait('me');dl.say.textContent=HELP[S.mini.type];dl.more.textContent='';dl.ch.innerHTML=''}
+const CTX=[262,302,342,382],CANX=[238,266,293,320,347,373,400];
+const CCT={x:252,y:62,w:181,h:166};const ctime=t=>{const m=50+Math.round(t*40);const h=22+Math.floor(m/60);return h+':'+String(m%60).padStart(2,'0')};
 function miniTap(p){const m=S.mini;
- if(m.type==='timing'){if(m.p>=m.zone&&m.p<=m.zone+.18){m.hits++;beep(660+m.hits*120,.1);m.zone=.05+Math.random()*.7;
-   if(m.hits>=3){S.mini=null;S.fixed=1;talk([['me','Есть! Шар выскочил, грабли поднялись.'],['me','Машина ожила. Теперь — к Виктору Палычу.']]);return}}else{m.sh=.3;beep(110,.15,'sawtooth')}
-  dl.say.textContent=`Точных толчков: ${m.hits} из 3. Тапай, когда стрелка в бирюзовой зоне.`;return}
- if(m.type==='breakers'){const i=Math.floor((p.x-140)/60);if(i<0||i>5||p.y<110||p.y>270)return;[i-1,i,i+1].forEach(j=>{if(j>=0&&j<6)m.st[j]^=1});beep(300+i*60,.06);
-  if(m.st.every(v=>v)){S.mini=null;S.s3fixed=1;sc(1,0,0);go('balcony',64,()=>talk([['me','Щёлк! Пульт ожил, музыка вернулась.'],['r:sanzhar','Шеф, звук есть! Гости аплодируют!']],null,checkCh3))}}}
-function drawMini(){const m=S.mini;
- if(m.type==='timing'){const sx=m.sh?(Math.random()-.5)*6:0;c.fillStyle='rgba(6,4,10,.78)';c.fillRect(0,0,LW,LH);
-  c.fillStyle='#1a1622';c.fillRect(120+sx,50,400,170);c.strokeStyle='#4a3560';c.lineWidth=2;c.strokeRect(120+sx,50,400,170);
-  c.fillStyle='#55505f';c.fillRect(150+sx,150,340,10);const bx=440-m.hits*90;c.fillStyle='#ff4fb0';c.beginPath();c.arc(bx+sx,138,14,0,7);c.fill();c.fillStyle='#ffa0d0';c.fillRect(bx-6+sx,130,5,5);
-  for(let i=0;i<4;i++){c.fillStyle='#f4f4f4';c.fillRect(170+i*16+sx,100,8,40);c.fillStyle='#d23a3a';c.fillRect(170+i*16+sx,108,8,4)}
-  c.fillStyle='#120e18';c.fillRect(120,250,400,22);c.fillStyle='#3ec9c1';c.fillRect(120+m.zone*400,250,.18*400,22);c.fillStyle='#f0c060';c.fillRect(120+m.p*400-2,242,5,38);
-  for(let i=0;i<3;i++){c.fillStyle=i<m.hits?'#3ec9c1':'#3a3346';c.fillRect(280+i*30,292,22,10)}}
- if(m.type==='breakers'){c.fillStyle='rgba(6,4,10,.55)';c.fillRect(0,0,LW,LH);c.fillStyle='rgba(20,16,26,.92)';c.fillRect(120,90,400,200);c.strokeStyle='#f0c060';c.lineWidth=2;c.strokeRect(120,90,400,200);
-  m.st.forEach((v,i)=>{const x=140+i*60;c.fillStyle='#2a2632';c.fillRect(x+6,110,48,160);c.fillStyle=v?'#3ec9c1':'#ff4a5a';c.fillRect(x+12,v?122:204,36,56);c.fillStyle='rgba(255,255,255,.25)';c.fillRect(x+12,v?122:204,36,6);
-   c.fillStyle=v?'#3ec9c1':'#ff4a5a';c.beginPath();c.arc(x+30,282,4,0,7);c.fill()})}}
+ if(m.type==='timing'){if(m.p>=m.zone&&m.p<=m.zone+.18){m.hits++;m.flash=.25;beep(660+m.hits*120,.1);m.zone=.05+Math.random()*.7;if(m.hits>=3){winMini();return}}else{m.sh=.3;beep(110,.15,'sawtooth')}
+  dl.say.textContent=`Точных рывков: ${m.hits} из 3. ${HELP.timing}`;return}
+ if(m.type==='breakers'){const i=Math.floor((p.x-140)/60);if(i<0||i>5||p.y<110||p.y>270)return;[i-1,i,i+1].forEach(j=>{if(j>=0&&j<6)m.st[j]^=1});beep(300+i*60,.06);if(m.st.every(v=>v))winMini();return}
+ if(m.type==='tablet'){if(p.x<210||p.x>436||p.y<128||p.y>256)return;const r=Math.floor((p.y-128)/25.6);
+  if(r===4){winMini();return}beep(220,.08);dl.say.textContent=['VIP-1 — Ерлан, всё верно. Ищи дальше.','VIP-2 — там уже поют. Не то.','VIP-3 на 20:00… а это что за значок ниже?','Корпоратив на дорожках, VIP тут ни при чём.'][r]||HELP.tablet;return}
+ if(m.type==='lock'){for(let i=0;i<4;i++){if(Math.abs(p.x-CTX[i])<20&&p.y>120&&p.y<240){m.d[i]=(m.d[i]+(p.y<180?1:9))%10;beep(500+i*40,.04)}}if(m.d.join('')==='1101')setTimeout(winMini,250);return}
+ if(m.type==='candles'){CANX.forEach((x,i)=>{if(Math.abs(p.x-x)<13&&p.y>60&&p.y<195&&!m.lit[i]){m.lit[i]=1;beep(600+i*50,.06,'triangle')}});if(m.lit.every(v=>v))setTimeout(winMini,300);return}
+ if(m.type==='stain')miniDrag(p)}
+function miniDrag(p){const m=S.mini;if(!m)return;
+ if(m.type==='cctv'&&p.x>=CCT.x-10&&p.x<=CCT.x+CCT.w+10){m.t=Math.max(0,Math.min(1,(p.x-CCT.x)/CCT.w))}
+ if(m.type==='stain'){m.b.forEach(b=>{if(Math.hypot(p.x-b.x,p.y-b.y)<b.r+12)b.a=Math.max(0,b.a-.1)});if(m.b.every(b=>b.a<.08)){setTimeout(winMini,200);m.type='done'}}}
+function miniUp(){const m=S.mini;if(!m)return;if(m.type==='cctv'){const c=ctime(m.t);if(c>='23:08'&&c<='23:12')winMini();else dl.say.textContent=c+'. На этом кадре ничего. '+HELP.cctv}}
+function drawMini(){const m=S.mini;if(!m)return;c.save();c.font='600 12px "Pixelify Sans",monospace';c.textBaseline='middle';
+ if(m.type==='timing'){const sx=m.sh?(Math.random()-.5)*6:0;if(m.flash>0){c.fillStyle=`rgba(255,220,120,${m.flash})`;c.fillRect(455,110,100,220)}
+  c.fillStyle='rgba(10,6,16,.8)';c.fillRect(110+sx,300,420,40);c.fillStyle='#3ec9c1';c.fillRect(120+m.zone*400,310,.18*400,20);c.fillStyle='#f0c060';c.fillRect(120+m.p*400-2+sx,304,5,32);
+  for(let i=0;i<3;i++){c.fillStyle=i<m.hits?'#3ec9c1':'#3a3346';c.fillRect(280+i*30,286,22,8)}}
+ if(m.type==='breakers'){c.fillStyle='rgba(6,4,10,.45)';c.fillRect(0,0,LW,LH);c.fillStyle='rgba(20,16,26,.9)';c.fillRect(120,90,400,200);c.strokeStyle='#f0c060';c.lineWidth=2;c.strokeRect(120,90,400,200);
+  m.st.forEach((v,i)=>{const x=140+i*60;c.fillStyle='#2a2632';c.fillRect(x+6,110,48,160);c.fillStyle=v?'#3ec9c1':'#ff4a5a';c.fillRect(x+12,v?122:204,36,56);c.fillStyle='rgba(255,255,255,.25)';c.fillRect(x+12,v?122:204,36,6);c.fillStyle=v?'#3ec9c1':'#ff4a5a';c.beginPath();c.arc(x+30,282,4,0,7);c.fill()})}
+ if(m.type==='tablet'){c.fillStyle='#0c1630';c.fillRect(210,108,226,148);c.fillStyle='#f0c060';c.fillText('Брони · пятница',218,118);
+  const rows=['VIP-1 · 22:00 · Ерлан (ДР)','VIP-2 · 19:00 · друзья Айдоса','VIP-3 · 20:00 · компания Сауле','Дорожки 9–12 · корпоратив','✉ 19:48 · Сауле: новое сообщение'];
+  rows.forEach((t,i)=>{const y=128+i*25.6;c.fillStyle=i===4?'rgba(255,79,176,.18)':'rgba(255,255,255,.06)';c.fillRect(214,y+2,218,22);c.fillStyle=i===4?'#ffb0d8':'#dfe6ff';c.fillText(t,222,y+13);if(i===4){c.fillStyle='#ff4a5a';c.beginPath();c.arc(426,y+13,3.5+Math.sin(T*6),0,7);c.fill()}})}
+ if(m.type==='cctv'){c.save();c.beginPath();c.rect(CCT.x,CCT.y,CCT.w,CCT.h);c.clip();c.globalAlpha=.9;c.drawImage(IMG.hall,250,80,330,230,CCT.x,CCT.y,CCT.w,CCT.h);c.globalAlpha=1;
+  const tt=ctime(m.t);if(tt>='23:08'&&tt<='23:12'){const a=ATL.dana;c.drawImage(IMG.atlas,a[0],a[1],a[2],a[3],CCT.x+92,CCT.y+70,a[2]*.55,a[3]*.55)}
+  c.fillStyle='rgba(120,180,140,.18)';c.fillRect(CCT.x,CCT.y,CCT.w,CCT.h);for(let y=CCT.y;y<CCT.y+CCT.h;y+=3){c.fillStyle='rgba(0,0,0,.18)';c.fillRect(CCT.x,y,CCT.w,1)}
+  c.fillStyle='#e8ffe8';c.fillText('CAM 02 · БАР · '+tt,CCT.x+6,CCT.y+10);c.fillStyle='#ff4a5a';c.beginPath();c.arc(CCT.x+CCT.w-10,CCT.y+10,3,0,7);c.fill();
+  c.fillStyle='rgba(0,0,0,.6)';c.fillRect(CCT.x+4,CCT.y+CCT.h-14,CCT.w-8,8);c.fillStyle='#f0c060';c.fillRect(CCT.x+4+m.t*(CCT.w-12),CCT.y+CCT.h-16,4,12);c.restore()}
+ if(m.type==='lock'){c.font='600 26px "Pixelify Sans",monospace';c.textAlign='center';m.d.forEach((d,i)=>{c.fillStyle='#f6e6b0';c.fillText(d,CTX[i],181);c.font='600 12px "Pixelify Sans",monospace';c.fillStyle='rgba(240,192,96,.9)';c.fillText('▲',CTX[i],146);c.fillText('▼',CTX[i],214);c.font='600 26px "Pixelify Sans",monospace'});c.textAlign='left'}
+ if(m.type==='stain'||m.type==='done'){(m.b||[]).forEach(b=>{if(b.a<=0)return;const g=c.createRadialGradient(b.x,b.y,2,b.x,b.y,b.r);g.addColorStop(0,`rgba(90,10,40,${.85*b.a})`);g.addColorStop(.7,`rgba(120,20,50,${.6*b.a})`);g.addColorStop(1,'rgba(120,20,50,0)');c.fillStyle=g;c.beginPath();c.arc(b.x,b.y,b.r,0,7);c.fill()})}
+ if(m.type==='candles'){CANX.forEach((x,i)=>{if(!m.lit[i])return;const f=Math.sin(T*18+i)*1.2;c.fillStyle='rgba(255,200,80,.25)';c.beginPath();c.arc(x,80,12,0,7);c.fill();c.fillStyle='#ff9a3c';c.beginPath();c.ellipse(x,79+f*.3,4,8+f,0,0,7);c.fill();c.fillStyle='#ffe27a';c.beginPath();c.ellipse(x,81,2,4,0,0,7);c.fill()});
+  c.fillStyle='#f4eef6';c.fillText('Горит: '+m.lit.filter(v=>v).length+' из 7',268,340)}
+ c.restore()}
+function updMini(dt){const m=S.mini;if(!m)return;if(m.type==='timing'){m.p+=m.v*dt*(.55+m.hits*.22);if(m.p>1){m.p=1;m.v=-1}if(m.p<0){m.p=0;m.v=1}m.sh=Math.max(0,m.sh-dt);m.flash=Math.max(0,m.flash-dt)}
+ if(m.type==='candles'){m.next-=dt;if(m.next<=0){m.next=.9+Math.random()*.6;const on=m.lit.map((v,i)=>v?i:-1).filter(i=>i>=0);if(on.length&&on.length<7){m.lit[on[Math.floor(Math.random()*on.length)]]=0;beep(180,.08,'triangle',.02)}}}}
 
 /* ---------- переходы и ввод ---------- */
 function go(id,x,then){fade.d=1;fade.cb=()=>{const from=S.scene;S.scene=id;const back=SC[id].hot().find(h=>h.go===from);me.x=me.tx=x!=null?x:(back?back.at:320);me.cb=null;me.face=1;
@@ -466,14 +512,18 @@ const hits=()=>[...npcRects(),...SC[S.scene].hot()];
 const hit=p=>hits().find(h=>p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h);
 cv.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||open||cardOpen||S.mini||!started)return;const h=hit(pos(e));hov.textContent=h?(S.sel?ITEM[S.sel][0]+' → ':'')+h.n:(S.sel?ITEM[S.sel][0]+' → тапни, куда применить':'');cv.style.cursor=h?'pointer':'default'});
 cv.addEventListener('pointerleave',()=>{if(!S||!S.sel)hov.textContent=''});
+cv.addEventListener('pointerdown',e=>{if(!S||!S.mini)return;const p=pos(e);S.mini.drag=1;miniDrag(p)});
+cv.addEventListener('pointermove',e=>{if(!S||!S.mini||!S.mini.drag)return;miniDrag(pos(e))});
+addEventListener('pointerup',e=>{if(!S||!S.mini||!S.mini.drag)return;S.mini.drag=0;miniUp()});
 cv.addEventListener('click',e=>{if(!started||cardOpen||endOpen||fade.d)return;const p=pos(e);if(S.mini){miniTap(p);return}if(open){advance();return}
+ if(S.ready&&SC[S.scene].closeup){const bh=backHot()[0];if(!(bh&&p.x<bh.x+bh.w&&p.y>bh.y)){S.mini=makeMini(S.ready);S.ready=null;hov.textContent='';miniHelp();return}}
  const h=hit(p),s=SC[S.scene];
  if(h){hov.textContent=h.n;const sel=S.sel;me.tx=Math.max(s.min,Math.min(s.max,h.at));
   me.cb=()=>{me.face=(h.x+h.w/2>me.x)?1:-1;setTimeout(()=>{if(!S.sel)hov.textContent=''},600);
    if(sel){S.sel=null;renderInv();if(h.use&&h.use[sel])h.use[sel]();else say1('Здесь это не пригодится.');return}
    if(h.go)go(h.go);else h.act&&h.act()}}
  else{me.tx=Math.max(s.min,Math.min(s.max,p.x));me.cb=null;if(S.sel){S.sel=null;renderInv();hov.textContent=''}}});
-addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&document.activeElement===document.body){e.preventDefault();if(cardOpen)$('card').click();else if(S&&S.mini&&S.mini.type==='timing')miniTap({x:0,y:0});else advance()}});
+addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&document.activeElement===document.body){e.preventDefault();if(cardOpen)$('card').click();else if(S&&S.mini&&S.mini.type==='timing')miniTap({x:0,y:0});else if(S&&S.ready&&SC[S.scene].closeup&&!open){S.mini=makeMini(S.ready);S.ready=null;miniHelp()}else advance()}});
 
 /* ---------- кадр ---------- */
 function hud(){c.save();c.fillStyle='rgba(12,8,20,.78)';c.strokeStyle='#4a3560';c.lineWidth=1.5;rr(8,8,150,56);c.fill();c.stroke();
@@ -490,9 +540,9 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=
  const s=SC[S.scene],d=me.tx-me.x,walking=Math.abs(d)>.8&&!fade.d;
  if(walking){const st=Math.min(Math.abs(d),92*s.s*dt);me.x+=st*Math.sign(d);me.face=Math.sign(d);me.ph+=st/(62*s.s)*Math.PI}else if(me.cb&&!fade.d){const cb=me.cb;me.cb=null;cb()}
  if(S.ch===0&&S.radio&&Object.keys(S.vis).length===3&&!S.erlanCalled&&!open&&!fade.d&&!cardOpen){S.erlanCalled=1;S.erlanHere=1;talk([['r:host','Шеф, к вам гость на ресепшн. Ерлан, у него сегодня день рождения.']])}
- if(S.mini&&S.mini.type==='timing'){const m=S.mini;m.p+=m.v*dt*(.55+m.hits*.22);if(m.p>1){m.p=1;m.v=-1}if(m.p<0){m.p=0;m.v=1}m.sh=Math.max(0,m.sh-dt)}
+ updMini(dt);
  c.drawImage(IMG[S.scene],0,0,LW,LH);
- if(S.scene!=='panel'){
+ if(!s.closeup){
   s.npcs().filter(Boolean).forEach(n=>sprite(n.k,n.x,n.feet||s.floor,s.s,false,n.clip||null,Math.sin(T*2+n.x)>.95?1:0));
   sprite(meFrame(walking),me.x,s.floor,s.s,me.face<0);
   (s.fg||[]).forEach(f=>{c.save();c.beginPath();f.p.forEach(([px,py],i)=>i?c.lineTo(px,py):c.moveTo(px,py));c.closePath();c.clip();c.globalAlpha=f.a;c.drawImage(IMG[S.scene],0,0,LW,LH);c.restore()});
@@ -504,6 +554,8 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=
    if(ax!=null){const b=Math.sin(T*5)*3;c.fillStyle='#f0c060';c.strokeStyle='#3a2410';c.lineWidth=1.5;c.beginPath();c.moveTo(ax-8,ay-14+b);c.lineTo(ax+8,ay-14+b);c.lineTo(ax,ay-3+b);c.closePath();c.fill();c.stroke()}}}
  if(confetti){CONF.forEach(p=>{p.y+=p.v*dt;p.x+=Math.sin(T*3+p.v)*.4;if(p.y>LH)p.y=-5;c.fillStyle=p.c;c.fillRect(p.x,p.y,3,5)})}
  if(S.mini)drawMini();
+ else if(S.ready&&s.closeup&&!open&&!fade.d){const a=.65+Math.sin(T*4)*.3;c.save();c.globalAlpha=a;c.fillStyle='rgba(12,8,20,.8)';rr(LW/2-95,LH/2-16,190,32);c.fill();c.strokeStyle='#f0c060';c.lineWidth=1.5;c.stroke();c.fillStyle='#f0c060';c.font='600 14px "Pixelify Sans",monospace';c.textAlign='center';c.textBaseline='middle';c.fillText('Тапни, чтобы начать',LW/2,LH/2);c.restore()}
+ if(s.closeup&&!S.mini)s.hot().forEach(h=>{if(!h.mk)return;const [mx,my]=h.mk;c.save();c.fillStyle='rgba(12,8,20,.8)';rr(mx-26,my-12,60,24);c.fill();c.strokeStyle='#f0c060';c.stroke();c.fillStyle='#f0c060';c.font='600 12px "Pixelify Sans",monospace';c.textAlign='center';c.textBaseline='middle';c.fillText('← Назад',mx+4,my);c.restore()});
  hud();
  if(fade.a>0){c.fillStyle=`rgba(0,0,0,${fade.a})`;c.fillRect(0,0,LW,LH)}
  requestAnimationFrame(frame)}
