@@ -160,6 +160,20 @@ let ac=null;
 let MUTED=false;try{MUTED=localStorage.getItem('pingwin-mute')==='1'}catch(e){}
 function beep(f,d=.08,type='square',v=.03){if(MUTED)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
 
+/* ---------- звуковые эффекты (Higgsfield) ---------- */
+const SFX={},LOOP={},SFXN=['door','power_off','street','radio','generator','buzz'];let sfxLoaded=false;
+function actx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}return ac}
+function loadSfx(){if(sfxLoaded||!actx())return;sfxLoaded=true;SFXN.forEach(n=>fetch('assets/sfx/'+n+'.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b,d=>{SFX[n]=d},()=>{})).catch(()=>{}))}
+function sfx(n,v=.6){if(MUTED||!ac||!SFX[n])return;try{const src=ac.createBufferSource(),g=ac.createGain();g.gain.value=v;src.buffer=SFX[n];src.connect(g).connect(ac.destination);src.start()}catch(e){}}
+function loopTo(n,want,v){const L=LOOP[n];if(want&&!MUTED&&ac&&SFX[n]){if(L&&L.on)return;let l=L;if(!l||!l.src){const src=ac.createBufferSource(),g=ac.createGain();src.buffer=SFX[n];src.loop=true;src.loopStart=.05;src.loopEnd=SFX[n].duration-.05;g.gain.value=0;src.connect(g).connect(ac.destination);src.start();l=LOOP[n]={src,g}}
+  l.on=true;l.g.gain.cancelScheduledValues(ac.currentTime);l.g.gain.setValueAtTime(l.g.gain.value,ac.currentTime);l.g.gain.linearRampToValueAtTime(v,ac.currentTime+.8)}
+ else if(L&&L.on){L.on=false;L.g.gain.cancelScheduledValues(ac.currentTime);L.g.gain.setValueAtTime(L.g.gain.value,ac.currentTime);L.g.gain.linearRampToValueAtTime(0,ac.currentTime+.6)}}
+function ambient(){if(!S||!started)return;const out=S.scene==='back';
+ loopTo('street',out,.55);loopTo('buzz',S.ch===7&&S.s7buzz&&!S.s7phone&&!has('phone')&&(S.scene==='vip2'||S.scene==='c_sofa'),S.scene==='c_sofa'?.7:.35);
+ const tv=out?.07:.32;if(Math.abs(bgm.volume-tv)>.01)bgm.volume+=(tv-bgm.volume)*.08}
+const VOICE={me:[560,'triangle'],host:[640,'triangle'],serik:[170,'square'],timur:[260,'square'],dana:[600,'triangle'],sanzhar:[300,'square'],erlan:[240,'square'],asel:[680,'triangle'],kamila:[720,'triangle'],viktor:[150,'sawtooth'],dauren:[210,'sawtooth'],galina:[420,'triangle'],bau:[280,'square'],roza:[460,'triangle'],book:[190,'square'],coll:[620,'triangle'],aliya:[580,'triangle'],aidos:[250,'square']};
+function blip(){if(MUTED||!CUR)return;const radio=CUR.startsWith('r:'),k=radio?CUR.slice(2):CUR,[f,w]=VOICE[k]||[440,'square'];beep(f*(.92+Math.random()*.16),.035,radio?'sawtooth':w,radio?.012:.018)}
+
 /* ---------- персонажи ---------- */
 const NAMES={me:'Менеджер (ты)',host:'Хостес Айгерим',serik:'Охранник Серик',timur:'Бармен Тимур',dana:'Официантка Дана',sanzhar:'Официант Санжар',erlan:'Ерлан',asel:'Асель',kamila:'Камила, блогер',viktor:'Виктор Палыч',dauren:'Даурен',galina:'Шеф Галина',bau:'Бауыржан, звук',roza:'Роза апай',book:'Мужчина с книгой',coll:'Гостья с корпоратива',aliya:'Алия, капитан «Барсов»',aidos:'Айдос, гость VIP-2'};
 const PBG={me:['#ff4fb0','#3a1030'],host:['#ff8a3c','#4a1a0c'],serik:['#7a8aa0','#141a24'],timur:['#3ec9c1','#0c3030'],dana:['#c08aff','#2a1040'],sanzhar:['#e8e4dc','#3a3640'],erlan:['#3ec9c1','#0c3a40'],asel:['#f0d0a0','#4a3420'],kamila:['#ff7ab8','#4a1030'],viktor:['#f0c060','#4a3010'],dauren:['#ffa040','#4a2008'],galina:['#e8eef4','#3a4450'],bau:['#7a8aff','#141444'],roza:['#5a8ae0','#10204a'],book:['#a08060','#2a1c10'],coll:['#5a8ae0','#10204a'],aliya:['#ff8a3c','#4a1a0c'],aidos:['#5ab0e0','#10304a']};
@@ -345,12 +359,12 @@ let Qd=[],Cd=null,after=null,typing=null,open=false;
 function talk(lines,choices,then){Qd=lines.slice();Cd=choices||null;after=then||null;open=true;S.sel=null;renderInv();next()}
 const say1=t=>talk([['me',t]]);
 function next(){dl.ch.innerHTML='';
- if(Qd.length){let [w,t]=Qd.shift();CUR=w;const radio=w.startsWith('r:');const k=radio?w.slice(2):w;dl.who.textContent=NAMES[k]+(radio?' · рация':'');portrait(k);type(t);return}
+ if(Qd.length){let [w,t]=Qd.shift();CUR=w;const radio=w.startsWith('r:');const k=radio?w.slice(2):w;if(radio)sfx('radio',.45);dl.who.textContent=NAMES[k]+(radio?' · рация':'');portrait(k);type(t);return}
  if(Cd){const list=Cd.filter(o=>!o.if||o.if());Cd=null;dl.more.textContent='';
   list.forEach(o=>{const bt=document.createElement('button');bt.type='button';bt.textContent=o.t;bt.addEventListener('click',e=>{e.stopPropagation();dl.ch.innerHTML='';open=false;const a=after;after=null;o.go();if(!open){idle();if(a)a()}});dl.ch.appendChild(bt)});return}
  open=false;CUR=null;const a=after;after=null;idle();if(a)a()}
 function type(t){clearInterval(typing);let i=0;dl.say.textContent='';dl.more.textContent='';dl.say.dataset.full=t;
- typing=setInterval(()=>{i+=2;dl.say.textContent=t.slice(0,i);if(i%6===0)beep(440+Math.random()*80,.02,'square',.01);if(i>=t.length){clearInterval(typing);typing=null;dl.say.textContent=t;dl.more.textContent='тап — дальше'}},24)}
+ typing=setInterval(()=>{i+=2;dl.say.textContent=t.slice(0,i);if(i%6===0)blip();if(i>=t.length){clearInterval(typing);typing=null;dl.say.textContent=t;dl.more.textContent='тап — дальше'}},24)}
 function idle(){if(S.mini)return;dl.who.textContent=NAMES.me;portrait('me');dl.say.textContent=goal()[0]+'.';dl.more.textContent='';$('goal').textContent=goal()[0]}
 function advance(){if(!open||dl.ch.children.length)return;if(typing){clearInterval(typing);typing=null;dl.say.textContent=dl.say.dataset.full;dl.more.textContent='тап — дальше';return}next()}
 $('dlg').addEventListener('click',advance);
@@ -516,7 +530,7 @@ function aidosTalk(){
  if(!S.s7aidos){talk([['aidos','Шеф, я потерял телефон! Где-то здесь, в VIP-2.'],['aidos','Друзья звонят — гудки идут, но за музыкой ничего не слышно.'],['aidos','А в шесть утра самолёт. Посадочный — там.'],['me','Найдём. Сейчас попрошу выключить музыку…']],null,()=>{S.s7aidos=1;setTimeout(blackout,500)});return}
  if(S.s7phone){talk([['aidos',S.s7power?'Свет и телефон! Лучшая ночь.':'Телефон нашёлся, теперь бы свет…']]);return}
  talk([['aidos',S.s7buzz?'Слышите? Вибрирует! Где-то в диване!':'Темно, как в шахте…']])}
-function blackout(){S.s7dark=1;bgm.pause();beep(90,.6,'sawtooth',.05);
+function blackout(){S.s7dark=1;bgm.pause();sfx('power_off',.8);
  talk([['me','…Что?! Свет погас. Музыка тоже.'],['r:serik','Шеф, весь квартал без света! Метель оборвала линию.'],['r:serik','Аварийный генератор — на заднем дворе, через кухню.'],['r:host','Шеф, гости в зале волнуются! Что делать?']],[
   {t:'Свечи на столы и чай за счёт заведения',go:()=>{sc(1,0,-1);talk([['r:host','Поняла! Свечи уже несём.']],null,buzz)}},
   {t:'Серик, у входа: никто не уходит без оплаты',go:()=>{sc(-1,0,1);talk([['r:serik','Принял. Стою у двери.']],null,buzz)}},
@@ -526,7 +540,7 @@ function sofaAct(){inspect('c_sofa','cushions','Темно. Вибрация и�
 function phoneAidos(){if(!has('phone'))return;take('phone');S.s7phone=1;sc(1,0,0);
  talk([['aidos','Мой телефон! Посадочный на месте!'],['aidos','Шеф, вы чудо. Оставлю вам отзыв на пять звёзд.']],null,checkCh7)}
 function genAct(){if(S.ch!==7||!S.s7dark||S.s7power){say1('Аварийный генератор под навесом. Надеюсь, не пригодится.');return}
- inspect('c_gen','wires','Генератор. Кто-то отсоединил провода на обслуживании. Каждый провод — к клемме своего цвета.',()=>{S.s7power=1;playMusic();go('back',500,()=>talk([['me','Тррр… Генератор завёлся!'],['r:serik','Шеф, свет есть! Гости аплодируют!']],null,checkCh7))})}
+ inspect('c_gen','wires','Генератор. Кто-то отсоединил провода на обслуживании. Каждый провод — к клемме своего цвета.',()=>{S.s7power=1;sfx('generator',.8);setTimeout(playMusic,2500);go('back',500,()=>talk([['me','Тррр… Генератор завёлся!'],['r:serik','Шеф, свет есть! Гости аплодируют!']],null,checkCh7))})}
 function checkCh7(){if(!S.s7phone||!S.s7power)return;S.done=1;save();
  setTimeout(()=>talk([['r:host','Шеф, 03:00. Последние гости уходят. Закрываемся?'],['me','Закрываемся. Какая ночь.']],null,epilogue),600)}
 
@@ -619,7 +633,8 @@ function updMini(dt){const m=S.mini;if(!m)return;if(m.type==='wires')m.spark=Mat
  if(m.type==='candles'){m.next-=dt;if(m.next<=0){m.next=.9+Math.random()*.6;const on=m.lit.map((v,i)=>v?i:-1).filter(i=>i>=0);if(on.length&&on.length<7){m.lit[on[Math.floor(Math.random()*on.length)]]=0;beep(180,.08,'triangle',.02)}}}}
 
 /* ---------- переходы и ввод ---------- */
-function go(id,x,then){fade.d=1;fade.cb=()=>{const from=S.scene;S.scene=id;const back=SC[id].hot().find(h=>h.go===from);me.x=me.tx=x!=null?x:(back?back.at:320);me.cb=null;me.face=1;
+const DOORS=['kitchen','back','vip1','vip2','vip3','wc','machine'];
+function go(id,x,then){if(!SC[id].closeup&&!SC[S.scene].closeup&&(DOORS.includes(id)||DOORS.includes(S.scene)))sfx('door',.55);fade.d=1;fade.cb=()=>{const from=S.scene;S.scene=id;const back=SC[id].hot().find(h=>h.go===from);me.x=me.tx=x!=null?x:(back?back.at:320);me.cb=null;me.face=1;
  if(S.ch===0&&S.radio&&['hall','bowling','balcony'].includes(id))S.vis[id]=1;idle();then&&then()};beep(330,.05,'triangle')}
 const hov=$('hover');
 function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*LW,y:(e.clientY-r.top)/r.height*LH}}
@@ -657,7 +672,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=
  const s=SC[S.scene],d=me.tx-me.x,walking=Math.abs(d)>.8&&!fade.d;
  if(walking){const st=Math.min(Math.abs(d),92*s.s*dt);me.x+=st*Math.sign(d);me.face=Math.sign(d);me.ph+=st/(62*s.s)*Math.PI}else if(me.cb&&!fade.d){const cb=me.cb;me.cb=null;cb()}
  if(S.ch===0&&S.radio&&Object.keys(S.vis).length===3&&!S.erlanCalled&&!open&&!fade.d&&!cardOpen){S.erlanCalled=1;S.erlanHere=1;talk([['r:host','Шеф, к вам гость на ресепшн. Ерлан, у него сегодня день рождения.']])}
- updMini(dt);
+ updMini(dt);ambient();
  c.drawImage(IMG[S.scene],0,0,LW,LH);
  if(!s.closeup){
   s.npcs().filter(Boolean).forEach(n=>sprite(n.k,n.x,n.feet||s.floor,s.s,false,n.clip||null,Math.sin(T*2+n.x)>.95?1:0));
@@ -680,7 +695,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=
 
 const bgm=$('bgm'),sndBtn=$('snd');bgm.volume=.32;
 function syncSnd(){sndBtn.setAttribute('aria-pressed',!MUTED);sndBtn.setAttribute('aria-label','Звук: '+(MUTED?'выкл':'вкл'));sndBtn.textContent=MUTED?'♪':'♪'}
-function playMusic(){if(MUTED||!started)return;const p=bgm.play();if(p&&p.catch)p.catch(()=>{})}
+function playMusic(){if(MUTED||!started||(S&&S.s7dark&&!S.s7power))return;const p=bgm.play();if(p&&p.catch)p.catch(()=>{})}
 /* полный экран */
 const fsBtn=$('fs'),fsTip=$('fstip');
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
@@ -695,19 +710,19 @@ fsBtn.addEventListener('click',async e=>{e.stopPropagation();
 $('fstipOk').addEventListener('click',e=>{e.stopPropagation();fsTip.hidden=true});
 fsTip.addEventListener('pointerdown',e=>e.stopPropagation());
 if(matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches||navigator.standalone)fsBtn.style.display='none';
-sndBtn.addEventListener('click',e=>{e.stopPropagation();MUTED=!MUTED;try{localStorage.setItem('pingwin-mute',MUTED?'1':'0')}catch(_){}syncSnd();if(MUTED)bgm.pause();else playMusic()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)bgm.pause();else playMusic()});
+sndBtn.addEventListener('click',e=>{e.stopPropagation();MUTED=!MUTED;try{localStorage.setItem('pingwin-mute',MUTED?'1':'0')}catch(_){}syncSnd();if(MUTED)bgm.pause();else{loadSfx();playMusic()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){bgm.pause();try{ac&&ac.suspend()}catch(_){}}else{try{ac&&ac.resume()}catch(_){}playMusic()}});
 syncSnd();
 function start(saved){S=saved?{...NEW(),...saved}:NEW();started=true;endOpen=false;confetti=0;$('end').hidden=true;$('start').hidden=true;setTimeout(playMusic,0);me.x=me.tx=300;me.cb=null;Qd=[];Cd=null;after=null;open=false;renderInv();chapter(S.ch)}
 ready.then(()=>{S=NEW();buildLinks();$('loading').textContent='';const sv=loadSave();if(sv){$('bCont').hidden=false;$('bCont').textContent='Продолжить: '+CH[sv.ch][0]}S=NEW();idle()}).catch(()=>{$('loading').textContent='Не удалось загрузить картинки. Обнови страницу.'});
-const prime=()=>{if(!MUTED){const p=bgm.play();if(p&&p.catch)p.catch(()=>{})}};
+const prime=()=>{loadSfx();if(!MUTED){const p=bgm.play();if(p&&p.then)p.then(()=>{if(S&&S.s7dark&&!S.s7power)bgm.pause()}).catch(()=>{})}};
 $('bNew').addEventListener('click',()=>{prime();ready.then(()=>start(null))});
 $('bCont').addEventListener('click',()=>{prime();ready.then(()=>start(loadSave()))});
 $('card').addEventListener('click',()=>playMusic());
 $('again').addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});start(null)});
 addEventListener('orientationchange',()=>setTimeout(()=>window.scrollTo(0,0),200));
 requestAnimationFrame(frame);
-window.__g={get S(){return S},me,hits,get open(){return open},get card(){return cardOpen},get started(){return started}};
+window.__g={SFX,LOOP,bgm,go,sfx,get ac(){return ac},get S(){return S},me,hits,get open(){return open},get card(){return cardOpen},get started(){return started}};
 }
 </script>
 </body>
