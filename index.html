@@ -32,6 +32,9 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
 .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .btn{font:600 16px "Pixelify Sans",monospace;background:var(--pink);color:#fff;border:0;border-radius:6px;min-height:44px;padding:0 18px;cursor:pointer}
 .btn.ghost{background:transparent;border:2px solid #5a4570;color:var(--ink)}
+.snd{position:absolute;right:1.4%;top:12%;width:40px;height:40px;border-radius:50%;border:1.5px solid #4a3560;background:rgba(12,8,20,.78);color:var(--gold);font:600 18px "Pixelify Sans",monospace;cursor:pointer;z-index:4;display:grid;place-items:center;padding:0}
+.snd[aria-pressed=false]{color:#6f6480;text-decoration:line-through}
+.snd:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .dlg{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(#1b1424,#110c18);border:2px solid var(--frame);margin:10px 0 0;padding:12px;min-height:136px;border-radius:4px;cursor:pointer}
 .pf{flex:none;width:96px;height:96px;padding:4px;background:#d79a5a;box-shadow:inset 0 0 0 2px #7a4a1c,0 0 0 2px #3a1d0c}
 .pf canvas{display:block;width:100%;height:100%}
@@ -76,6 +79,7 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
  .inv .empty{display:none}.inv:has(.empty){display:none}
  .slot{width:38px;height:38px;flex:none}.slot canvas{width:32px;height:32px}
  .hover{bottom:auto;top:50%;font-size:12px}
+ .snd{top:13%;width:34px;height:34px;font-size:15px}
  .endbox{position:fixed;inset:4%;margin:0;overflow:auto;z-index:10}
  .over h2{font-size:30px}.over p{font-size:13px}
 }
@@ -89,6 +93,8 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
   <div class="game">
     <canvas id="scene" aria-label="Игровая сцена"></canvas>
     <div class="hover" id="hover"></div>
+    <button class="snd" id="snd" type="button" aria-label="Звук: вкл" aria-pressed="true">♪</button>
+    <audio id="bgm" src="assets/music.mp3" loop preload="auto"></audio>
     <div class="over" id="start"><div>
       <p class="k">Pingwin Premium · пятница</p><h2>Смена менеджера</h2>
       <p>Пять глав одной ночи: брони, боулинг, тишина в VIP, сцена на танцполе и пропавшее кольцо.</p>
@@ -133,7 +139,8 @@ const ready=Promise.all([...BGN.map(n=>load('assets/bg/'+n+'.webp').then(i=>IMG[
 
 /* ---------- звук ---------- */
 let ac=null;
-function beep(f,d=.08,type='square',v=.03){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
+let MUTED=false;try{MUTED=localStorage.getItem('pingwin-mute')==='1'}catch(e){}
+function beep(f,d=.08,type='square',v=.03){if(MUTED)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
 
 /* ---------- персонажи ---------- */
 const NAMES={me:'Менеджер (ты)',host:'Хостес Айгерим',serik:'Охранник Серик',timur:'Бармен Тимур',dana:'Официантка Дана',sanzhar:'Официант Санжар',erlan:'Ерлан',asel:'Асель',kamila:'Камила, блогер',viktor:'Виктор Палыч',dauren:'Даурен',galina:'Шеф Галина',bau:'Бауыржан, звук',roza:'Роза апай',book:'Мужчина с книгой',coll:'Гостья с корпоратива'};
@@ -560,10 +567,18 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;POSET=
  if(fade.a>0){c.fillStyle=`rgba(0,0,0,${fade.a})`;c.fillRect(0,0,LW,LH)}
  requestAnimationFrame(frame)}
 
-function start(saved){S=saved?{...NEW(),...saved}:NEW();started=true;endOpen=false;confetti=0;$('end').hidden=true;$('start').hidden=true;me.x=me.tx=300;me.cb=null;Qd=[];Cd=null;after=null;open=false;renderInv();chapter(S.ch)}
+const bgm=$('bgm'),sndBtn=$('snd');bgm.volume=.32;
+function syncSnd(){sndBtn.setAttribute('aria-pressed',!MUTED);sndBtn.setAttribute('aria-label','Звук: '+(MUTED?'выкл':'вкл'));sndBtn.textContent=MUTED?'♪':'♪'}
+function playMusic(){if(MUTED||!started)return;const p=bgm.play();if(p&&p.catch)p.catch(()=>{})}
+sndBtn.addEventListener('click',e=>{e.stopPropagation();MUTED=!MUTED;try{localStorage.setItem('pingwin-mute',MUTED?'1':'0')}catch(_){}syncSnd();if(MUTED)bgm.pause();else playMusic()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)bgm.pause();else playMusic()});
+syncSnd();
+function start(saved){S=saved?{...NEW(),...saved}:NEW();started=true;endOpen=false;confetti=0;$('end').hidden=true;$('start').hidden=true;setTimeout(playMusic,0);me.x=me.tx=300;me.cb=null;Qd=[];Cd=null;after=null;open=false;renderInv();chapter(S.ch)}
 ready.then(()=>{S=NEW();buildLinks();$('loading').textContent='';const sv=loadSave();if(sv){$('bCont').hidden=false;$('bCont').textContent='Продолжить: '+CH[sv.ch][0]}S=NEW();idle()}).catch(()=>{$('loading').textContent='Не удалось загрузить картинки. Обнови страницу.'});
-$('bNew').addEventListener('click',()=>ready.then(()=>start(null)));
-$('bCont').addEventListener('click',()=>ready.then(()=>start(loadSave())));
+const prime=()=>{if(!MUTED){const p=bgm.play();if(p&&p.catch)p.catch(()=>{})}};
+$('bNew').addEventListener('click',()=>{prime();ready.then(()=>start(null))});
+$('bCont').addEventListener('click',()=>{prime();ready.then(()=>start(loadSave()))});
+$('card').addEventListener('click',()=>playMusic());
 $('again').addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});start(null)});
 addEventListener('orientationchange',()=>setTimeout(()=>window.scrollTo(0,0),200));
 requestAnimationFrame(frame);
