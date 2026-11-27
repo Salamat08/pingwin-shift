@@ -165,15 +165,26 @@ html.isfs .endbox{position:fixed;inset:6%;margin:0;overflow:auto;z-index:10}
 window.addEventListener('error',e=>{try{const t='Ошибка: '+(e.message||e)+' ('+(e.lineno||'')+')';const l=document.getElementById('loading');if(l)l.textContent=t;const d=document.getElementById('say');if(d)d.textContent=t}catch(_){}});
 {
 const $=id=>document.getElementById(id);
-const LW=640,LH=360,K=1.5;
-const cv=$('scene'),c=cv.getContext('2d');cv.width=LW*K;cv.height=LH*K;
-c.setTransform(K,0,0,K,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+const LW=640,LH=360;let K=1.5;
+const cv=$('scene'),c=cv.getContext('2d');
+/* разрешение холста = реальный размер на экране × плотность пикселей (до 2560 по ширине) */
+function fitCanvas(){const r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,3);
+ const w=Math.round(Math.min(2560,Math.max(960,(r.width||640)*dpr)));if(Math.abs(w-cv.width)<8&&cv.height)return;
+ cv.width=w;cv.height=Math.round(w*LH/LW);K=w/LW;c.setTransform(K,0,0,K,0,0);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';if(w>1000)upgradeHD()}
+addEventListener('resize',()=>setTimeout(fitCanvas,60));
 
 /* ---------- ассеты ---------- */
 const BGN=['lobby','hall','bowling','machine','kitchen','balcony','vip1','vip2','vip3','wc','back','panel','c_tablet','c_pin','c_cctv','c_locker','c_dress','c_cake','c_score','c_gen','c_sofa'];
 const IMG={};let ATL={},ICN=[],RIG=null;
 function load(src){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src})}
 const ready=Promise.all([...BGN.map(n=>load('assets/bg/'+n+'.webp').then(i=>IMG[n]=i)),load('assets/atlas.png').then(i=>IMG.atlas=i),load('assets/icons.png').then(i=>IMG.icons=i),load('assets/me_portrait.webp').then(i=>IMG.mep=i),load('assets/rig.png').then(i=>IMG.rig=i),fetch('assets/rig.json').then(r=>r.json()).then(j=>RIG=j),fetch('assets/atlas.json').then(r=>r.json()).then(j=>{ATL=j.sprites;ICN=j.icons})]);
+
+/* HD-графика: подгружается после старта, если экран крупный */
+let hdOn=false;
+function upgradeHD(){if(hdOn)return;hdOn=true;
+ Promise.all([load('assets/atlas_hd.png'),fetch('assets/atlas_hd.json').then(r=>r.json())]).then(([im,j])=>{IMG.atlas=im;ATL=j.sprites;SPH=j.sph;PX=122/SPH}).catch(()=>{});
+ load('assets/icons_hd.png').then(im=>{IMG.icons=im;fetch('assets/atlas_hd.json').then(r=>r.json()).then(j=>{ICN=j.icons;if(S&&S.inv)renderInv()})}).catch(()=>{});
+ BGN.forEach(n=>load('assets/bg_hd/'+n+'.webp').then(i=>{IMG[n]=i}).catch(()=>{}))}
 
 /* ---------- звук ---------- */
 let ac=null;
@@ -197,7 +208,7 @@ function blip(){if(MUTED||!CUR)return;const radio=CUR.startsWith('r:'),k=radio?C
 /* ---------- персонажи ---------- */
 const NAMES={me:'Менеджер (ты)',host:'Хостес Айгерим',serik:'Охранник Серик',timur:'Бармен Тимур',dana:'Официантка Дана',sanzhar:'Официант Санжар',erlan:'Ерлан',asel:'Асель',kamila:'Камила, блогер',viktor:'Виктор Палыч',dauren:'Даурен',galina:'Шеф Галина',bau:'Бауыржан, звук',roza:'Роза апай',book:'Мужчина с книгой',coll:'Гостья с корпоратива',aliya:'Алия, капитан «Барсов»',aidos:'Айдос, гость VIP-2'};
 const PBG={me:['#ff4fb0','#3a1030'],host:['#ff8a3c','#4a1a0c'],serik:['#7a8aa0','#141a24'],timur:['#3ec9c1','#0c3030'],dana:['#c08aff','#2a1040'],sanzhar:['#e8e4dc','#3a3640'],erlan:['#3ec9c1','#0c3a40'],asel:['#f0d0a0','#4a3420'],kamila:['#ff7ab8','#4a1030'],viktor:['#f0c060','#4a3010'],dauren:['#ffa040','#4a2008'],galina:['#e8eef4','#3a4450'],bau:['#7a8aff','#141444'],roza:['#5a8ae0','#10204a'],book:['#a08060','#2a1c10'],coll:['#5a8ae0','#10204a'],aliya:['#ff8a3c','#4a1a0c'],aidos:['#5ab0e0','#10304a']};
-const SPH=160,PX=122/SPH; // высота спрайта менеджера в атласе и масштаб в сцене
+let SPH=160,PX=122/SPH; // высота спрайта менеджера в атласе и масштаб в сцене
 function sprite(k,x,feet,s=1,flip=false,clipY=null,bob=0){const a=ATL[k];if(!a)return;const w=a[2]*PX*s,h=a[3]*PX*s;
  c.save();if(clipY!=null){c.beginPath();c.rect(x-w,0,w*2,clipY);c.clip()}
  c.translate(x,feet-bob);if(flip)c.scale(-1,1);c.drawImage(IMG.atlas,a[0],a[1],a[2],a[3],-w/2,-h,w,h);c.restore();return{w,h}}
@@ -335,7 +346,7 @@ function loadSave(){try{const j=JSON.parse(localStorage.getItem('pingwin-shift')
 /* ---------- сумка ---------- */
 function renderInv(){const el=$('inv');el.innerHTML=S.inv.length?'':'<span class="empty">Сумка пуста</span>';
  S.inv.forEach(id=>{const bt=document.createElement('button');bt.type='button';bt.className='slot';bt.title=ITEM[id][0];bt.setAttribute('aria-label',ITEM[id][0]);bt.setAttribute('aria-pressed',S.sel===id);
-  const ic=document.createElement('canvas');ic.width=88;ic.height=88;drawIcon(ic.getContext('2d'),id,88);bt.append(ic);
+  const ic=document.createElement('canvas');ic.width=176;ic.height=176;drawIcon(ic.getContext('2d'),id,176);bt.append(ic);
   bt.addEventListener('click',()=>{if(open||cardOpen||S.mini)return;S.sel=S.sel===id?null:id;renderInv();$('hover').textContent=S.sel?ITEM[S.sel][0]+' → тапни, куда применить':''});el.appendChild(bt)})}
 
 /* ---------- цели ---------- */
@@ -619,7 +630,7 @@ function drawMini(){const m=S.mini;if(!m)return;c.save();c.font='600 12px "Pixel
   const rows=['VIP-1 · 22:00 · Ерлан (ДР)','VIP-2 · 19:00 · друзья Айдоса','VIP-3 · 20:00 · компания Сауле','Дорожки 9–12 · корпоратив','✉ 19:48 · Сауле: новое сообщение'];
   rows.forEach((t,i)=>{const y=128+i*25.6;c.fillStyle=i===4?'rgba(255,79,176,.18)':'rgba(255,255,255,.06)';c.fillRect(214,y+2,218,22);c.fillStyle=i===4?'#ffb0d8':'#dfe6ff';c.fillText(t,222,y+13);if(i===4){c.fillStyle='#ff4a5a';c.beginPath();c.arc(426,y+13,3.5+Math.sin(T*6),0,7);c.fill()}})}
  if(m.type==='cctv'){c.save();c.beginPath();c.rect(CCT.x,CCT.y,CCT.w,CCT.h);c.clip();c.globalAlpha=.9;c.drawImage(IMG.hall,250,80,330,230,CCT.x,CCT.y,CCT.w,CCT.h);c.globalAlpha=1;
-  const tt=ctime(m.t);if(tt>='23:08'&&tt<='23:12'){const a=ATL.dana;c.drawImage(IMG.atlas,a[0],a[1],a[2],a[3],CCT.x+92,CCT.y+70,a[2]*.55,a[3]*.55)}
+  const tt=ctime(m.t);if(tt>='23:08'&&tt<='23:12'){const a=ATL.dana;c.drawImage(IMG.atlas,a[0],a[1],a[2],a[3],CCT.x+92,CCT.y+70,a[2]*.55*160/SPH,a[3]*.55*160/SPH)}
   c.fillStyle='rgba(120,180,140,.18)';c.fillRect(CCT.x,CCT.y,CCT.w,CCT.h);for(let y=CCT.y;y<CCT.y+CCT.h;y+=3){c.fillStyle='rgba(0,0,0,.18)';c.fillRect(CCT.x,y,CCT.w,1)}
   c.fillStyle='#e8ffe8';c.fillText('CAM 02 · БАР · '+tt,CCT.x+6,CCT.y+10);c.fillStyle='#ff4a5a';c.beginPath();c.arc(CCT.x+CCT.w-10,CCT.y+10,3,0,7);c.fill();
   c.fillStyle='rgba(0,0,0,.6)';c.fillRect(CCT.x+4,CCT.y+CCT.h-14,CCT.w-8,8);c.fillStyle='#f0c060';c.fillRect(CCT.x+4+m.t*(CCT.w-12),CCT.y+CCT.h-16,4,12);c.restore()}
@@ -735,7 +746,7 @@ sndBtn.addEventListener('click',e=>{e.stopPropagation();MUTED=!MUTED;try{localSt
 document.addEventListener('visibilitychange',()=>{if(document.hidden){bgm.pause();try{ac&&ac.suspend()}catch(_){}}else{try{ac&&ac.resume()}catch(_){}playMusic()}});
 syncSnd();
 function start(saved){S=saved?{...NEW(),...saved}:NEW();started=true;endOpen=false;confetti=0;$('end').hidden=true;$('start').hidden=true;setTimeout(playMusic,0);me.x=me.tx=300;me.cb=null;Qd=[];Cd=null;after=null;open=false;renderInv();chapter(S.ch)}
-ready.then(()=>{S=NEW();buildLinks();$('loading').textContent='';const sv=loadSave();if(sv){$('bCont').hidden=false;$('bCont').textContent='Продолжить: '+CH[sv.ch][0]}S=NEW();idle()}).catch(()=>{$('loading').textContent='Не удалось загрузить картинки. Обнови страницу.'});
+ready.then(()=>{fitCanvas();S=NEW();buildLinks();$('loading').textContent='';const sv=loadSave();if(sv){$('bCont').hidden=false;$('bCont').textContent='Продолжить: '+CH[sv.ch][0]}S=NEW();idle()}).catch(()=>{$('loading').textContent='Не удалось загрузить картинки. Обнови страницу.'});
 const prime=()=>{loadSfx();if(!MUTED){const p=bgm.play();if(p&&p.then)p.then(()=>{if(S&&S.s7dark&&!S.s7power)bgm.pause()}).catch(()=>{})}};
 $('bNew').addEventListener('click',()=>{prime();ready.then(()=>start(null))});
 $('bCont').addEventListener('click',()=>{prime();ready.then(()=>start(loadSave()))});
