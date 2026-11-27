@@ -634,7 +634,7 @@ function updMini(dt){const m=S.mini;if(!m)return;if(m.type==='wires')m.spark=Mat
 
 /* ---------- переходы и ввод ---------- */
 const DOORS=['kitchen','back','vip1','vip2','vip3','wc','machine'];
-function go(id,x,then){if(!SC[id].closeup&&!SC[S.scene].closeup&&(DOORS.includes(id)||DOORS.includes(S.scene)))sfx('door',.55);fade.d=1;fade.cb=()=>{const from=S.scene;S.scene=id;const back=SC[id].hot().find(h=>h.go===from);me.x=me.tx=x!=null?x:(back?back.at:320);me.cb=null;me.face=1;
+function go(id,x,then){if(!SC[id].closeup&&!SC[S.scene].closeup&&(DOORS.includes(id)||DOORS.includes(S.scene)))sfx('door',.4);fade.d=1;fade.cb=()=>{const from=S.scene;S.scene=id;const back=SC[id].hot().find(h=>h.go===from);me.x=me.tx=x!=null?x:(back?back.at:320);me.cb=null;me.face=1;
  if(S.ch===0&&S.radio&&['hall','bowling','balcony'].includes(id))S.vis[id]=1;idle();then&&then()};beep(330,.05,'triangle')}
 const hov=$('hover');
 function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*LW,y:(e.clientY-r.top)/r.height*LH}}
