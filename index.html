@@ -40,7 +40,7 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
 .btn{font:600 16px "Pixelify Sans",monospace;background:var(--pink);color:#fff;border:0;border-radius:6px;min-height:44px;padding:0 18px;cursor:pointer}
 .btn.ghost{background:transparent;border:2px solid #5a4570;color:var(--ink)}
 .snd{position:absolute;right:1.4%;top:12%;width:40px;height:40px;border-radius:50%;border:1.5px solid #4a3560;background:rgba(12,8,20,.78);color:var(--gold);font:600 18px "Pixelify Sans",monospace;cursor:pointer;z-index:4;display:grid;place-items:center;padding:0}
-.fs{position:absolute;right:1.4%;top:calc(12% + 48px);width:40px;height:40px;border-radius:50%;border:1.5px solid #4a3560;background:rgba(12,8,20,.78);color:var(--gold);cursor:pointer;z-index:4;display:none;place-items:center;padding:0}
+.fs{position:absolute;right:1.4%;top:calc(12% + 48px);width:40px;height:40px;border-radius:50%;border:1.5px solid #4a3560;background:rgba(12,8,20,.78);color:var(--gold);cursor:pointer;z-index:4;display:grid;place-items:center;padding:0}
 .fs svg{width:20px;height:20px}
 .fs:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .fstip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;max-width:min(92%,420px);background:rgba(17,12,24,.96);border:1.5px solid #4a3560;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.4;text-align:center}
@@ -99,6 +99,26 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
  .endbox{position:fixed;inset:4%;margin:0;overflow:auto;z-index:10}
  .over h2{font-size:30px}.over p{font-size:13px}
 }
+
+/* полный экран (ПК и телефоны): сцена на весь экран, диалог и сумка поверх */
+html.isfs,html.isfs body{background:#000;overflow:hidden;height:100%}
+html.isfs .band{position:fixed;inset:0;padding:0;display:grid;place-items:center}
+html.isfs .wrap{max-width:none;width:100%}
+html.isfs .top,html.isfs .obj,html.isfs .note{display:none}
+html.isfs .stage{position:relative;width:min(100vw,calc(100vh * 16 / 9));width:min(100vw,calc(100dvh * 16 / 9));margin:0 auto}
+html.isfs .game{border-radius:0;box-shadow:none}
+html.isfs .dlg{position:absolute;left:25.5%;right:19%;top:2%;margin:0;min-height:0;max-height:46%;overflow:auto;padding:clamp(6px,.8vw,14px);gap:clamp(8px,1vw,16px);background:rgba(17,12,24,.92);border-width:2px;z-index:3}
+html.isfs .pf{width:clamp(48px,5.5vw,104px);height:clamp(48px,5.5vw,104px);padding:3px}
+html.isfs .who{font-size:clamp(13px,1.35vw,24px);margin:0 0 4px}
+html.isfs .say{font-size:clamp(14px,1.45vw,26px);min-height:0;line-height:1.3}
+html.isfs .more{font-size:clamp(11px,.9vw,16px);margin-top:4px}
+html.isfs .choices{gap:6px;margin-top:8px}
+html.isfs .choices button{font-size:clamp(13px,1.3vw,22px);min-height:34px;padding:4px 10px}
+html.isfs .inv{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);margin:0;min-height:0;padding:4px;gap:6px;background:rgba(17,12,24,.85);z-index:3;flex-wrap:nowrap;max-width:70%;overflow-x:auto}
+html.isfs .inv .empty{display:none}html.isfs .inv:has(.empty){display:none}
+html.isfs .slot{width:clamp(38px,4.2vw,72px);height:clamp(38px,4.2vw,72px);flex:none}html.isfs .slot canvas{width:82%;height:82%}
+html.isfs .hover{bottom:auto;top:50%}
+html.isfs .endbox{position:fixed;inset:6%;margin:0;overflow:auto;z-index:10}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
@@ -110,7 +130,7 @@ canvas#scene{display:block;width:100%;aspect-ratio:16/9;touch-action:manipulatio
     <canvas id="scene" aria-label="Игровая сцена"></canvas>
     <div class="hover" id="hover"></div>
     <button class="snd" id="snd" type="button" aria-label="Звук: вкл" aria-pressed="true">♪</button>
-    <button class="fs" id="fs" type="button" aria-label="На весь экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><path id="fsI" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+    <button class="fs" id="fs" type="button" aria-label="На весь экран" title="На весь экран (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><path id="fsI" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
     <div class="fstip" id="fstip" hidden><b>Полный экран на iPhone</b>Safari не даёт сайтам открываться на весь экран. Нажми «Поделиться» → «На экран „Домой“» и запускай игру с иконки: она откроется без адресной строки.<br><button class="btn" id="fstipOk" type="button">Понятно</button></div>
     <audio id="bgm" src="assets/music.mp3" loop preload="auto"></audio>
     <div class="over" id="start"><div>
@@ -700,7 +720,7 @@ function playMusic(){if(MUTED||!started||(S&&S.s7dark&&!S.s7power))return;const 
 const fsBtn=$('fs'),fsTip=$('fstip');
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
 const ICON_IN='M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',ICON_OUT='M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5';
-function syncFs(){const on=!!fsEl();$('fsI').setAttribute('d',on?ICON_OUT:ICON_IN);fsBtn.setAttribute('aria-label',on?'Выйти из полного экрана':'На весь экран');setTimeout(()=>dispatchEvent(new Event('resize')),120)}
+function syncFs(){const on=!!fsEl();document.documentElement.classList.toggle('isfs',on);$('fsI').setAttribute('d',on?ICON_OUT:ICON_IN);fsBtn.setAttribute('aria-label',on?'Выйти из полного экрана':'На весь экран');setTimeout(()=>dispatchEvent(new Event('resize')),120)}
 document.addEventListener('fullscreenchange',syncFs);document.addEventListener('webkitfullscreenchange',syncFs);
 fsBtn.addEventListener('click',async e=>{e.stopPropagation();
  if(fsEl()){try{(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(_){}return}
@@ -709,6 +729,7 @@ fsBtn.addEventListener('click',async e=>{e.stopPropagation();
  fsTip.hidden=false});
 $('fstipOk').addEventListener('click',e=>{e.stopPropagation();fsTip.hidden=true});
 fsTip.addEventListener('pointerdown',e=>e.stopPropagation());
+addEventListener('keydown',e=>{if((e.key==='f'||e.key==='а'||e.key==='F'||e.key==='А')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))){e.preventDefault();fsBtn.click()}});
 if(matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches||navigator.standalone)fsBtn.style.display='none';
 sndBtn.addEventListener('click',e=>{e.stopPropagation();MUTED=!MUTED;try{localStorage.setItem('pingwin-mute',MUTED?'1':'0')}catch(_){}syncSnd();if(MUTED)bgm.pause();else{loadSfx();playMusic()}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){bgm.pause();try{ac&&ac.suspend()}catch(_){}}else{try{ac&&ac.resume()}catch(_){}playMusic()}});
