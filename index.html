@@ -164,7 +164,7 @@ function drawRig(x,feet,s,flip,ph,walk,t){const M=RIG._meta,U=122*s/(M.bottom-M.
  c.restore()}
 let POSE=null,POSET=0,CUR=null;
 function pose(k,d=.8){POSE=k;POSET=d}
-function meFrame(walking){if(walking)return 'mw'+((T*10|0)%8);
+function meFrame(walking){if(walking)return 'mw'+((T*8|0)%4);
  if(POSET>0)return POSE;if(S.done&&!open)return 'ma0';
  if(open&&CUR==='me')return typing&&((T*4|0)%2)?'ma1':'ma0';
  if(open&&CUR&&CUR.startsWith('r:'))return 'ma2';
